@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
+  <title>Dashboard - CRM Webinar & Training</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>CRM System</h1>
+        <p id="user-name">Welcome</p>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" data-page="dashboard">
+          <span>Dashboard</span>
+        </a>
+        <a class="nav-item" data-page="contacts">
+          <span>Contacts</span>
+        </a>
+        <a class="nav-item" data-page="webinars">
+          <span>Webinars</span>
+        </a>
+        <a class="nav-item" data-page="training">
+          <span>Training</span>
+        </a>
+        <a class="nav-item" data-page="messages">
+          <span>Messages</span>
+        </a>
+        <a class="nav-item" id="logout-btn">
+          <span>Logout</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="page-header">
+        <h2 class="page-title">Dashboard</h2>
+        <div id="current-date"></div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon contacts">C</div>
+          <div class="stat-info">
+            <h3 id="total-contacts">0</h3>
+            <p>Total Contacts</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon webinars">W</div>
+          <div class="stat-info">
+            <h3 id="total-webinars">0</h3>
+            <p>Total Webinars</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon live">L</div>
+          <div class="stat-info">
+            <h3 id="active-webinars">0</h3>
+            <p>Live Webinars</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon training">T</div>
+          <div class="stat-info">
+            <h3 id="total-courses">0</h3>
+            <p>Training Courses</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Quick Actions</h3>
+        </div>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="navigateTo('contacts')">Add Contact</button>
+          <button class="btn btn-success" onclick="navigateTo('webinars')">Schedule Webinar</button>
+          <button class="btn btn-warning" onclick="navigateTo('training')">Create Course</button>
+          <button class="btn btn-secondary" onclick="navigateTo('messages')">Send Message</button>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Upcoming Webinars</h3>
+        </div>
+        <div id="upcoming-webinars">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/app.js"></script>
+  <script>
+    // Check authentication
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    if (!currentUser) {
+      window.api.navigate('login');
+    } else {
+      document.getElementById('user-name').textContent = `Welcome, ${currentUser.fullName}`;
+    }
+
+    // Set current date
+    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Load dashboard stats
+    async function loadDashboardStats() {
+      try {
+        const stats = await window.api.stats.getDashboard();
+        document.getElementById('total-contacts').textContent = stats.totalContacts;
+        document.getElementById('total-webinars').textContent = stats.totalWebinars;
+        document.getElementById('active-webinars').textContent = stats.activeWebinars;
+        document.getElementById('total-courses').textContent = stats.totalCourses;
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+      }
+    }
+
+    // Load upcoming webinars
+    async function loadUpcomingWebinars() {
+      try {
+        const webinars = await window.api.webinars.getAll();
+        const upcoming = webinars
+          .filter(w => w.status === 'scheduled')
+          .sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date))
+          .slice(0, 5);
+
+        const container = document.getElementById('upcoming-webinars');
+
+        if (upcoming.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <h3>No upcoming webinars</h3>
+              <p>Schedule your first webinar to get started</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Host</th>
+                <th>Date</th>
+                <th>Duration</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${upcoming.map(w => `
+                <tr>
+                  <td>${w.title}</td>
+                  <td>${w.host_name || 'Unknown'}</td>
+                  <td>${new Date(w.scheduled_date).toLocaleString()}</td>
+                  <td>${w.duration} min</td>
+                  <td><span class="badge badge-info">${w.status}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (error) {
+        console.error('Failed to load webinars:', error);
+      }
+    }
+
+    // Navigation
+    function navigateTo(page) {
+      window.api.navigate(page);
+    }
+
+    // Setup navigation
+    document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+      item.addEventListener('click', () => {
+        const page = item.getAttribute('data-page');
+        navigateTo(page);
+      });
+    });
+
+    // Logout handler
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      if (currentUser) {
+        await window.api.auth.logout(currentUser.id);
+      }
+      sessionStorage.removeItem('currentUser');
+      window.api.navigate('login');
+    });
+
+    // Initialize
+    loadDashboardStats();
+    loadUpcomingWebinars();
+  </script>
+</body>
+</html>

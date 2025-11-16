@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
+  <title>Messages - CRM Webinar & Training</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>CRM System</h1>
+        <p id="user-name">Welcome</p>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"><span>Dashboard</span></a>
+        <a class="nav-item" data-page="contacts"><span>Contacts</span></a>
+        <a class="nav-item" data-page="webinars"><span>Webinars</span></a>
+        <a class="nav-item" data-page="training"><span>Training</span></a>
+        <a class="nav-item active" data-page="messages"><span>Messages</span></a>
+        <a class="nav-item" id="logout-btn"><span>Logout</span></a>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <div class="page-header">
+        <h2 class="page-title">Messages</h2>
+        <button class="btn btn-primary" id="new-conversation-btn">New Conversation</button>
+      </div>
+
+      <div class="messages-container">
+        <!-- Conversations List -->
+        <div class="conversations-list">
+          <div style="padding: 15px; border-bottom: 1px solid #eee;">
+            <input type="text" class="form-control" placeholder="Search conversations..." id="search-conversations">
+          </div>
+          <div id="conversations-list">
+            <div class="loading">
+              <div class="spinner"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-area">
+          <div class="chat-header" id="chat-header">
+            <h4>Select a conversation</h4>
+          </div>
+          <div class="chat-messages" id="chat-messages">
+            <div class="empty-state">
+              <h3>No conversation selected</h3>
+              <p>Select a conversation or start a new one</p>
+            </div>
+          </div>
+          <div class="chat-input" id="chat-input-area" style="display: none;">
+            <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off">
+            <button class="btn btn-primary" id="send-message-btn">Send</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- New Conversation Modal -->
+  <div id="new-conversation-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">New Conversation</h3>
+        <button class="modal-close" id="close-conversation-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="new-conversation-form">
+          <div class="form-group">
+            <label for="conversation-name">Conversation Name (optional)</label>
+            <input type="text" id="conversation-name" class="form-control" placeholder="e.g., Project Discussion">
+          </div>
+
+          <div class="form-group">
+            <label for="conversation-type">Type</label>
+            <select id="conversation-type" class="form-control">
+              <option value="direct">Direct Message</option>
+              <option value="group">Group Chat</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Add Participants</label>
+            <div id="participants-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px;">
+              <p class="loading">Loading users...</p>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancel-conversation">Cancel</button>
+        <button class="btn btn-primary" id="create-conversation">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/app.js"></script>
+  <script>
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    if (!currentUser) {
+      window.api.navigate('login');
+    } else {
+      document.getElementById('user-name').textContent = `Welcome, ${currentUser.fullName}`;
+    }
+
+    let conversations = [];
+    let selectedConversation = null;
+    let messages = [];
+    let availableUsers = [];
+    let messageRefreshInterval = null;
+
+    async function loadConversations() {
+      try {
+        conversations = await window.api.messages.getConversations(currentUser.id);
+        renderConversations();
+      } catch (error) {
+        showNotification('Failed to load conversations', 'danger');
+      }
+    }
+
+    function renderConversations() {
+      const container = document.getElementById('conversations-list');
+
+      if (conversations.length === 0) {
+        container.innerHTML = `
+          <div style="padding: 20px; text-align: center; color: #7f8c8d;">
+            <p>No conversations yet</p>
+            <small>Start a new conversation</small>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = conversations.map(conv => `
+        <div class="conversation-item ${selectedConversation && selectedConversation.id === conv.id ? 'active' : ''}"
+             onclick="selectConversation('${conv.id}')">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong>${escapeHtml(conv.name || 'Conversation')}</strong>
+            ${conv.unread_count > 0 ? `<span class="badge badge-danger">${conv.unread_count}</span>` : ''}
+          </div>
+          <p style="color: #7f8c8d; font-size: 0.85rem; margin-top: 5px;">
+            ${conv.last_message ? truncateText(conv.last_message, 40) : 'No messages yet'}
+          </p>
+          ${conv.last_message_time ? `<small style="color: #95a5a6;">${timeAgo(conv.last_message_time)}</small>` : ''}
+        </div>
+      `).join('');
+    }
+
+    window.selectConversation = async function(conversationId) {
+      selectedConversation = conversations.find(c => c.id === conversationId);
+      if (!selectedConversation) return;
+
+      // Update header
+      document.getElementById('chat-header').innerHTML = `
+        <h4>${escapeHtml(selectedConversation.name || 'Conversation')}</h4>
+        <small style="color: #7f8c8d;">${selectedConversation.type === 'group' ? 'Group Chat' : 'Direct Message'}</small>
+      `;
+
+      // Show input area
+      document.getElementById('chat-input-area').style.display = 'flex';
+
+      // Load messages
+      await loadMessages(conversationId);
+
+      // Highlight selected conversation
+      renderConversations();
+
+      // Start auto-refresh
+      if (messageRefreshInterval) {
+        clearInterval(messageRefreshInterval);
+      }
+      messageRefreshInterval = setInterval(() => loadMessages(conversationId), 5000);
+    };
+
+    async function loadMessages(conversationId) {
+      try {
+        messages = await window.api.messages.getMessages(conversationId);
+        renderMessages();
+      } catch (error) {
+        console.error('Failed to load messages:', error);
+      }
+    }
+
+    function renderMessages() {
+      const container = document.getElementById('chat-messages');
+
+      if (messages.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>No messages yet</h3>
+            <p>Start the conversation by sending a message</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = messages.map(msg => `
+        <div class="message ${msg.sender_id === currentUser.id ? 'sent' : 'received'}">
+          ${msg.sender_id !== currentUser.id ? `<small style="color: #7f8c8d; margin-bottom: 5px;">${escapeHtml(msg.sender_name)}</small>` : ''}
+          <div class="message-content">
+            ${escapeHtml(msg.content)}
+          </div>
+          <div class="message-time">${formatDateTime(msg.created_at)}</div>
+        </div>
+      `).join('');
+
+      // Scroll to bottom
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Send message
+    async function sendMessage() {
+      const input = document.getElementById('message-input');
+      const content = input.value.trim();
+
+      if (!content || !selectedConversation) return;
+
+      try {
+        const result = await window.api.messages.sendMessage({
+          conversationId: selectedConversation.id,
+          senderId: currentUser.id,
+          content: content
+        });
+
+        if (result.success) {
+          input.value = '';
+          await loadMessages(selectedConversation.id);
+          loadConversations(); // Update conversation list
+        } else {
+          showNotification(result.error || 'Failed to send message', 'danger');
+        }
+      } catch (error) {
+        showNotification('Failed to send message', 'danger');
+      }
+    }
+
+    document.getElementById('send-message-btn').addEventListener('click', sendMessage);
+
+    document.getElementById('message-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+
+    // New conversation
+    document.getElementById('new-conversation-btn').addEventListener('click', async () => {
+      // Load available users (we'll simulate with creating user entries based on contacts)
+      // In a real app, you'd have actual user accounts
+      const contacts = await window.api.contacts.getAll();
+
+      // For demo, we'll create checkboxes for contacts (treating them as potential users)
+      const participantsList = document.getElementById('participants-list');
+      participantsList.innerHTML = contacts.map(contact => `
+        <label style="display: block; padding: 5px 0; cursor: pointer;">
+          <input type="checkbox" value="${contact.id}" class="participant-checkbox">
+          ${escapeHtml(contact.first_name)} ${escapeHtml(contact.last_name)} (${escapeHtml(contact.email)})
+        </label>
+      `).join('');
+
+      if (contacts.length === 0) {
+        participantsList.innerHTML = '<p style="color: #7f8c8d;">No contacts available. Add contacts first.</p>';
+      }
+
+      document.getElementById('new-conversation-modal').classList.add('show');
+    });
+
+    document.getElementById('create-conversation').addEventListener('click', async () => {
+      const name = document.getElementById('conversation-name').value;
+      const type = document.getElementById('conversation-type').value;
+      const selectedParticipants = Array.from(document.querySelectorAll('.participant-checkbox:checked'))
+        .map(cb => cb.value);
+
+      // Add current user to participants
+      selectedParticipants.push(currentUser.id);
+
+      if (selectedParticipants.length < 2) {
+        showNotification('Please select at least one participant', 'warning');
+        return;
+      }
+
+      try {
+        const result = await window.api.messages.createConversation({
+          name: name || (type === 'group' ? 'Group Chat' : 'Direct Message'),
+          type: type,
+          userIds: selectedParticipants
+        });
+
+        if (result.success) {
+          showNotification('Conversation created', 'success');
+          document.getElementById('new-conversation-modal').classList.remove('show');
+          await loadConversations();
+          selectConversation(result.conversationId);
+        } else {
+          showNotification(result.error || 'Failed to create conversation', 'danger');
+        }
+      } catch (error) {
+        showNotification('Failed to create conversation', 'danger');
+      }
+    });
+
+    // Search conversations
+    document.getElementById('search-conversations').addEventListener('input', debounce((e) => {
+      const query = e.target.value.toLowerCase().trim();
+      const filtered = conversations.filter(c =>
+        (c.name && c.name.toLowerCase().includes(query)) ||
+        (c.last_message && c.last_message.toLowerCase().includes(query))
+      );
+
+      const container = document.getElementById('conversations-list');
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #7f8c8d;">No results found</div>';
+      } else {
+        // Temporarily override conversations for rendering
+        const originalConversations = conversations;
+        conversations = filtered;
+        renderConversations();
+        conversations = originalConversations;
+      }
+    }, 300));
+
+    // Close modals
+    ['close-conversation-modal', 'cancel-conversation'].forEach(id => {
+      document.getElementById(id).addEventListener('click', () => {
+        document.getElementById('new-conversation-modal').classList.remove('show');
+      });
+    });
+
+    // Navigation
+    document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+      item.addEventListener('click', () => {
+        if (messageRefreshInterval) {
+          clearInterval(messageRefreshInterval);
+        }
+        window.api.navigate(item.getAttribute('data-page'));
+      });
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      if (messageRefreshInterval) {
+        clearInterval(messageRefreshInterval);
+      }
+      if (currentUser) await window.api.auth.logout(currentUser.id);
+      sessionStorage.removeItem('currentUser');
+      window.api.navigate('login');
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      if (messageRefreshInterval) {
+        clearInterval(messageRefreshInterval);
+      }
+    });
+
+    loadConversations();
+  </script>
+</body>
+</html>

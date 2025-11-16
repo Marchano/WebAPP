@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
+  <title>Contacts - CRM Webinar & Training</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>CRM System</h1>
+        <p id="user-name">Welcome</p>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"><span>Dashboard</span></a>
+        <a class="nav-item active" data-page="contacts"><span>Contacts</span></a>
+        <a class="nav-item" data-page="webinars"><span>Webinars</span></a>
+        <a class="nav-item" data-page="training"><span>Training</span></a>
+        <a class="nav-item" data-page="messages"><span>Messages</span></a>
+        <a class="nav-item" id="logout-btn"><span>Logout</span></a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="page-header">
+        <h2 class="page-title">Contacts</h2>
+        <button class="btn btn-primary" id="add-contact-btn">Add Contact</button>
+      </div>
+
+      <!-- Search -->
+      <div class="search-box">
+        <input type="text" class="search-input" id="search-contacts" placeholder="Search contacts...">
+        <span class="search-icon">Search</span>
+      </div>
+
+      <!-- Contacts Table -->
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Company</th>
+                <th>Position</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="contacts-table">
+              <tr>
+                <td colspan="7" class="loading">
+                  <div class="spinner"></div>
+                  <p>Loading contacts...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add/Edit Contact Modal -->
+  <div id="contact-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title">Add Contact</h3>
+        <button class="modal-close" id="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="contact-form">
+          <input type="hidden" id="contact-id">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="first-name">First Name</label>
+              <input type="text" id="first-name" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="last-name">Last Name</label>
+              <input type="text" id="last-name" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" class="form-control">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="company">Company</label>
+              <input type="text" id="company" class="form-control">
+            </div>
+            <div class="form-group">
+              <label for="position">Position</label>
+              <input type="text" id="position" class="form-control">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" class="form-control" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="tags">Tags (comma-separated)</label>
+            <input type="text" id="tags" class="form-control" placeholder="e.g., VIP, Lead, Customer">
+          </div>
+
+          <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status" class="form-control">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="lead">Lead</option>
+              <option value="customer">Customer</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancel-btn">Cancel</button>
+        <button class="btn btn-primary" id="save-contact-btn">Save Contact</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/app.js"></script>
+  <script>
+    // Check authentication
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    if (!currentUser) {
+      window.api.navigate('login');
+    } else {
+      document.getElementById('user-name').textContent = `Welcome, ${currentUser.fullName}`;
+    }
+
+    let contacts = [];
+    let editingContact = null;
+
+    // Load contacts
+    async function loadContacts() {
+      try {
+        contacts = await window.api.contacts.getAll();
+        renderContacts(contacts);
+      } catch (error) {
+        showNotification('Failed to load contacts', 'danger');
+      }
+    }
+
+    // Render contacts table
+    function renderContacts(contactsList) {
+      const tbody = document.getElementById('contacts-table');
+
+      if (contactsList.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">
+                <h3>No contacts found</h3>
+                <p>Add your first contact to get started</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = contactsList.map(contact => `
+        <tr>
+          <td>${escapeHtml(contact.first_name)} ${escapeHtml(contact.last_name)}</td>
+          <td>${escapeHtml(contact.email)}</td>
+          <td>${escapeHtml(contact.phone || '-')}</td>
+          <td>${escapeHtml(contact.company || '-')}</td>
+          <td>${escapeHtml(contact.position || '-')}</td>
+          <td><span class="badge ${getStatusBadgeClass(contact.status)}">${contact.status}</span></td>
+          <td>
+            <div class="actions">
+              <button class="btn btn-sm btn-primary" onclick="editContact('${contact.id}')">Edit</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteContact('${contact.id}')">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Search contacts
+    document.getElementById('search-contacts').addEventListener('input', debounce(async (e) => {
+      const query = e.target.value.trim();
+      if (query === '') {
+        renderContacts(contacts);
+      } else {
+        const results = await window.api.contacts.search(query);
+        renderContacts(results);
+      }
+    }, 300));
+
+    // Open add modal
+    document.getElementById('add-contact-btn').addEventListener('click', () => {
+      editingContact = null;
+      document.getElementById('modal-title').textContent = 'Add Contact';
+      document.getElementById('contact-form').reset();
+      document.getElementById('contact-id').value = '';
+      document.getElementById('contact-modal').classList.add('show');
+    });
+
+    // Edit contact
+    window.editContact = function(id) {
+      editingContact = contacts.find(c => c.id === id);
+      if (!editingContact) return;
+
+      document.getElementById('modal-title').textContent = 'Edit Contact';
+      document.getElementById('contact-id').value = editingContact.id;
+      document.getElementById('first-name').value = editingContact.first_name;
+      document.getElementById('last-name').value = editingContact.last_name;
+      document.getElementById('email').value = editingContact.email;
+      document.getElementById('phone').value = editingContact.phone || '';
+      document.getElementById('company').value = editingContact.company || '';
+      document.getElementById('position').value = editingContact.position || '';
+      document.getElementById('notes').value = editingContact.notes || '';
+      document.getElementById('tags').value = editingContact.tags ? JSON.parse(editingContact.tags).join(', ') : '';
+      document.getElementById('status').value = editingContact.status;
+
+      document.getElementById('contact-modal').classList.add('show');
+    };
+
+    // Delete contact
+    window.deleteContact = async function(id) {
+      if (await confirmAction('Are you sure you want to delete this contact?')) {
+        const result = await window.api.contacts.delete(id);
+        if (result.success) {
+          showNotification('Contact deleted successfully', 'success');
+          loadContacts();
+        } else {
+          showNotification(result.error || 'Failed to delete contact', 'danger');
+        }
+      }
+    };
+
+    // Save contact
+    document.getElementById('save-contact-btn').addEventListener('click', async () => {
+      const form = document.getElementById('contact-form');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const tagsInput = document.getElementById('tags').value;
+      const tagsArray = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
+
+      const contactData = {
+        firstName: document.getElementById('first-name').value,
+        lastName: document.getElementById('last-name').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        company: document.getElementById('company').value,
+        position: document.getElementById('position').value,
+        notes: document.getElementById('notes').value,
+        tags: JSON.stringify(tagsArray),
+        status: document.getElementById('status').value
+      };
+
+      let result;
+      if (editingContact) {
+        result = await window.api.contacts.update(editingContact.id, contactData);
+      } else {
+        result = await window.api.contacts.create(contactData);
+      }
+
+      if (result.success) {
+        showNotification(editingContact ? 'Contact updated successfully' : 'Contact created successfully', 'success');
+        document.getElementById('contact-modal').classList.remove('show');
+        loadContacts();
+      } else {
+        showNotification(result.error || 'Failed to save contact', 'danger');
+      }
+    });
+
+    // Close modal
+    document.getElementById('close-modal').addEventListener('click', () => {
+      document.getElementById('contact-modal').classList.remove('show');
+    });
+
+    document.getElementById('cancel-btn').addEventListener('click', () => {
+      document.getElementById('contact-modal').classList.remove('show');
+    });
+
+    document.getElementById('contact-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'contact-modal') {
+        document.getElementById('contact-modal').classList.remove('show');
+      }
+    });
+
+    // Navigation
+    document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+      item.addEventListener('click', () => {
+        window.api.navigate(item.getAttribute('data-page'));
+      });
+    });
+
+    // Logout
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      if (currentUser) {
+        await window.api.auth.logout(currentUser.id);
+      }
+      sessionStorage.removeItem('currentUser');
+      window.api.navigate('login');
+    });
+
+    // Initialize
+    loadContacts();
+  </script>
+</body>
+</html>
