@@ -52,16 +52,27 @@ A comprehensive cross-platform CRM application built with Electron, featuring we
 
 ## Installation
 
-### Prerequisites
+### For End Users
+
+Download the installer for your platform from the [Releases](../../releases) page:
+
+- **macOS**: Download and open the `.dmg` file, then drag to Applications
+- **Windows**: Download and run the `.exe` installer
+
+See [QUICK_START.md](QUICK_START.md) for detailed installation instructions.
+
+### For Developers
+
+#### Prerequisites
 - Node.js (v16 or higher)
 - npm or yarn
 - Git
 
-### Setup
+#### Development Setup
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/Marchano/WebAPP.git
 cd WebAPP
 ```
 
@@ -70,29 +81,59 @@ cd WebAPP
 npm install
 ```
 
-3. Start the application:
+3. Start the application in development mode:
 ```bash
 npm start
+# or
+npm run dev
 ```
 
-## Building for Production
+## Building Executable Packages
 
-### Build for macOS:
+### Quick Build
+
+**On macOS/Linux:**
+```bash
+chmod +x build.sh
+./build.sh
+```
+
+**On Windows:**
+```cmd
+build.bat
+```
+
+### Manual Build Commands
+
+Build for macOS:
 ```bash
 npm run build:mac
 ```
 
-### Build for Windows:
+Build for Windows:
 ```bash
 npm run build:win
 ```
 
-### Build for both platforms:
+Build for both platforms:
 ```bash
 npm run build:all
 ```
 
-Build outputs will be available in the `dist/` directory.
+Build outputs will be in the `dist/` directory.
+
+For detailed build instructions, see [BUILD.md](BUILD.md).
+
+### Automated Builds
+
+This project includes GitHub Actions for automated builds. Push a version tag to trigger:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Installers will be automatically built and attached to the GitHub Release.
 
 ## Project Structure
 
