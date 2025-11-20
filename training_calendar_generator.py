@@ -48,6 +48,7 @@ def create_training_calendar(year=None, month=None, output_filename=None):
     # Create sheets
     calendar_sheet = wb.active
     calendar_sheet.title = "Training Calendar"
+    training_types_sheet = wb.create_sheet("Training Types")
     charts_sheet = wb.create_sheet("Training Analytics")
 
     # Sample data for demonstration
@@ -261,7 +262,344 @@ def create_training_calendar(year=None, month=None, output_filename=None):
         calendar_sheet.cell(row=legend_row, column=col+1, value=f"= {desc}")
 
     # ==========================================
-    # SHEET 2: Training Analytics with Charts
+    # SHEET 2: Training Types Configuration
+    # ==========================================
+
+    # Title
+    training_types_sheet.merge_cells('A1:L1')
+    title_cell = training_types_sheet['A1']
+    title_cell.value = f"Training Types Configuration - {month_name} {year}"
+    title_cell.font = Font(size=18, bold=True, color="1F4E79")
+    title_cell.alignment = Alignment(horizontal='center', vertical='center')
+    training_types_sheet.row_dimensions[1].height = 30
+
+    # Instructions
+    training_types_sheet.merge_cells('A2:L2')
+    instruction_cell = training_types_sheet['A2']
+    instruction_cell.value = "Add your training types below. This sheet serves as a master list of all available trainings."
+    instruction_cell.font = Font(italic=True, color="666666")
+    instruction_cell.alignment = Alignment(horizontal='center')
+
+    # Headers for training types
+    training_type_headers = [
+        "Training ID",
+        "Training Name",
+        "Category",
+        "Description",
+        "Duration (Hours)",
+        "Difficulty Level",
+        "Target Audience",
+        "Prerequisites",
+        "Max Participants",
+        "Instructor",
+        "Location/Mode",
+        "Status"
+    ]
+
+    # Write headers
+    header_row = 4
+    for col, header in enumerate(training_type_headers, 1):
+        cell = training_types_sheet.cell(row=header_row, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        cell.border = thin_border
+
+    training_types_sheet.row_dimensions[header_row].height = 35
+
+    # Sample training types data
+    sample_trainings = [
+        {
+            "id": "TRN001",
+            "name": "Onboarding Basics",
+            "category": "Onboarding",
+            "description": "Introduction to company policies and procedures",
+            "duration": 4,
+            "difficulty": "Beginner",
+            "audience": "New Hires",
+            "prerequisites": "None",
+            "max_participants": 20,
+            "instructor": "HR Team",
+            "location": "Online",
+            "status": "Active"
+        },
+        {
+            "id": "TRN002",
+            "name": "Safety Compliance",
+            "category": "Compliance",
+            "description": "Workplace safety and emergency procedures",
+            "duration": 2,
+            "difficulty": "Beginner",
+            "audience": "All Employees",
+            "prerequisites": "None",
+            "max_participants": 30,
+            "instructor": "Safety Officer",
+            "location": "In-Person",
+            "status": "Active"
+        },
+        {
+            "id": "TRN003",
+            "name": "Leadership Development",
+            "category": "Management",
+            "description": "Advanced leadership skills and team management",
+            "duration": 16,
+            "difficulty": "Advanced",
+            "audience": "Managers",
+            "prerequisites": "TRN001",
+            "max_participants": 15,
+            "instructor": "External Consultant",
+            "location": "Hybrid",
+            "status": "Active"
+        },
+        {
+            "id": "TRN004",
+            "name": "Technical Skills - Python",
+            "category": "Technical",
+            "description": "Python programming fundamentals",
+            "duration": 24,
+            "difficulty": "Intermediate",
+            "audience": "Engineering",
+            "prerequisites": "Basic Programming",
+            "max_participants": 12,
+            "instructor": "Tech Lead",
+            "location": "Online",
+            "status": "Active"
+        },
+        {
+            "id": "TRN005",
+            "name": "Customer Service Excellence",
+            "category": "Soft Skills",
+            "description": "Effective communication and customer handling",
+            "duration": 8,
+            "difficulty": "Intermediate",
+            "audience": "Sales, Support",
+            "prerequisites": "TRN001",
+            "max_participants": 25,
+            "instructor": "Training Manager",
+            "location": "In-Person",
+            "status": "Active"
+        },
+        {
+            "id": "TRN006",
+            "name": "Data Privacy & Security",
+            "category": "Compliance",
+            "description": "GDPR, data handling, and cybersecurity awareness",
+            "duration": 3,
+            "difficulty": "Beginner",
+            "audience": "All Employees",
+            "prerequisites": "None",
+            "max_participants": 50,
+            "instructor": "IT Security",
+            "location": "Online",
+            "status": "Active"
+        },
+        {
+            "id": "TRN007",
+            "name": "Project Management Fundamentals",
+            "category": "Management",
+            "description": "Basics of project planning and execution",
+            "duration": 12,
+            "difficulty": "Intermediate",
+            "audience": "All Levels",
+            "prerequisites": "None",
+            "max_participants": 20,
+            "instructor": "PMO Team",
+            "location": "Hybrid",
+            "status": "Active"
+        },
+        {
+            "id": "TRN008",
+            "name": "Advanced Excel & Analytics",
+            "category": "Technical",
+            "description": "Advanced Excel functions, pivot tables, and data analysis",
+            "duration": 6,
+            "difficulty": "Intermediate",
+            "audience": "Finance, HR, Ops",
+            "prerequisites": "Basic Excel",
+            "max_participants": 15,
+            "instructor": "Data Analyst",
+            "location": "Online",
+            "status": "Active"
+        },
+        {
+            "id": "TRN009",
+            "name": "Communication Skills",
+            "category": "Soft Skills",
+            "description": "Verbal and written communication techniques",
+            "duration": 4,
+            "difficulty": "Beginner",
+            "audience": "All Employees",
+            "prerequisites": "None",
+            "max_participants": 30,
+            "instructor": "HR Team",
+            "location": "In-Person",
+            "status": "Active"
+        },
+        {
+            "id": "TRN010",
+            "name": "Agile & Scrum Methodology",
+            "category": "Technical",
+            "description": "Agile principles, Scrum framework, and sprint planning",
+            "duration": 8,
+            "difficulty": "Intermediate",
+            "audience": "Engineering, Product",
+            "prerequisites": "TRN007",
+            "max_participants": 18,
+            "instructor": "Scrum Master",
+            "location": "Hybrid",
+            "status": "Active"
+        },
+    ]
+
+    # Write sample training data
+    data_start_row = header_row + 1
+    for idx, training in enumerate(sample_trainings):
+        row = data_start_row + idx
+
+        # Training ID
+        id_cell = training_types_sheet.cell(row=row, column=1, value=training["id"])
+        id_cell.border = thin_border
+        id_cell.font = Font(bold=True)
+
+        # Training Name
+        name_cell = training_types_sheet.cell(row=row, column=2, value=training["name"])
+        name_cell.border = thin_border
+
+        # Category
+        cat_cell = training_types_sheet.cell(row=row, column=3, value=training["category"])
+        cat_cell.border = thin_border
+        # Color code by category
+        category_colors = {
+            "Onboarding": "E2EFDA",
+            "Compliance": "FCE4D6",
+            "Management": "DDEBF7",
+            "Technical": "FFF2CC",
+            "Soft Skills": "E4DFEC"
+        }
+        if training["category"] in category_colors:
+            cat_cell.fill = PatternFill(start_color=category_colors[training["category"]],
+                                        end_color=category_colors[training["category"]],
+                                        fill_type="solid")
+
+        # Description
+        desc_cell = training_types_sheet.cell(row=row, column=4, value=training["description"])
+        desc_cell.border = thin_border
+        desc_cell.alignment = Alignment(wrap_text=True)
+
+        # Duration
+        dur_cell = training_types_sheet.cell(row=row, column=5, value=training["duration"])
+        dur_cell.border = thin_border
+        dur_cell.alignment = Alignment(horizontal='center')
+
+        # Difficulty Level
+        diff_cell = training_types_sheet.cell(row=row, column=6, value=training["difficulty"])
+        diff_cell.border = thin_border
+        # Color code by difficulty
+        if training["difficulty"] == "Beginner":
+            diff_cell.fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+        elif training["difficulty"] == "Intermediate":
+            diff_cell.fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
+        else:  # Advanced
+            diff_cell.fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+
+        # Target Audience
+        aud_cell = training_types_sheet.cell(row=row, column=7, value=training["audience"])
+        aud_cell.border = thin_border
+
+        # Prerequisites
+        prereq_cell = training_types_sheet.cell(row=row, column=8, value=training["prerequisites"])
+        prereq_cell.border = thin_border
+
+        # Max Participants
+        max_cell = training_types_sheet.cell(row=row, column=9, value=training["max_participants"])
+        max_cell.border = thin_border
+        max_cell.alignment = Alignment(horizontal='center')
+
+        # Instructor
+        inst_cell = training_types_sheet.cell(row=row, column=10, value=training["instructor"])
+        inst_cell.border = thin_border
+
+        # Location/Mode
+        loc_cell = training_types_sheet.cell(row=row, column=11, value=training["location"])
+        loc_cell.border = thin_border
+        # Color code by location
+        if training["location"] == "Online":
+            loc_cell.fill = PatternFill(start_color="B4C6E7", end_color="B4C6E7", fill_type="solid")
+        elif training["location"] == "In-Person":
+            loc_cell.fill = PatternFill(start_color="F8CBAD", end_color="F8CBAD", fill_type="solid")
+        else:  # Hybrid
+            loc_cell.fill = PatternFill(start_color="C9C9C9", end_color="C9C9C9", fill_type="solid")
+
+        # Status
+        status_cell = training_types_sheet.cell(row=row, column=12, value=training["status"])
+        status_cell.border = thin_border
+        if training["status"] == "Active":
+            status_cell.font = Font(color="00B050", bold=True)
+        else:
+            status_cell.font = Font(color="FF0000", bold=True)
+
+    # Add empty rows for user input (10 more rows)
+    for i in range(10):
+        row = data_start_row + len(sample_trainings) + i
+        for col in range(1, len(training_type_headers) + 1):
+            cell = training_types_sheet.cell(row=row, column=col, value="")
+            cell.border = thin_border
+
+    # Set column widths
+    training_type_widths = {
+        'A': 12, 'B': 28, 'C': 15, 'D': 40, 'E': 15, 'F': 15,
+        'G': 18, 'H': 18, 'I': 15, 'J': 18, 'K': 15, 'L': 10
+    }
+    for col, width in training_type_widths.items():
+        training_types_sheet.column_dimensions[col].width = width
+
+    # Add summary section
+    summary_row = data_start_row + len(sample_trainings) + 12
+    training_types_sheet.cell(row=summary_row, column=1, value="Summary:").font = Font(bold=True, size=12)
+
+    # Category legend
+    training_types_sheet.cell(row=summary_row + 1, column=1, value="Category Colors:").font = Font(bold=True)
+    legend_items_cat = [
+        ("Onboarding", "E2EFDA"),
+        ("Compliance", "FCE4D6"),
+        ("Management", "DDEBF7"),
+        ("Technical", "FFF2CC"),
+        ("Soft Skills", "E4DFEC")
+    ]
+    for i, (cat, color) in enumerate(legend_items_cat):
+        cell = training_types_sheet.cell(row=summary_row + 2 + i, column=1, value=cat)
+        cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+        cell.border = thin_border
+
+    # Difficulty legend
+    training_types_sheet.cell(row=summary_row + 1, column=3, value="Difficulty Colors:").font = Font(bold=True)
+    legend_items_diff = [
+        ("Beginner", "C6EFCE"),
+        ("Intermediate", "FFEB9C"),
+        ("Advanced", "FFC7CE")
+    ]
+    for i, (diff, color) in enumerate(legend_items_diff):
+        cell = training_types_sheet.cell(row=summary_row + 2 + i, column=3, value=diff)
+        cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+        cell.border = thin_border
+
+    # Location legend
+    training_types_sheet.cell(row=summary_row + 1, column=5, value="Location Colors:").font = Font(bold=True)
+    legend_items_loc = [
+        ("Online", "B4C6E7"),
+        ("In-Person", "F8CBAD"),
+        ("Hybrid", "C9C9C9")
+    ]
+    for i, (loc, color) in enumerate(legend_items_loc):
+        cell = training_types_sheet.cell(row=summary_row + 2 + i, column=5, value=loc)
+        cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+        cell.border = thin_border
+
+    # Freeze panes for training types sheet
+    training_types_sheet.freeze_panes = 'A5'
+
+    # ==========================================
+    # SHEET 3: Training Analytics with Charts
     # ==========================================
 
     # Title
